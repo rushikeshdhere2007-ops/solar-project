@@ -537,28 +537,83 @@ function renderSolarWindChart(ts) {
 }
 
 function renderFeatureImportanceChart(importances) {
-    const features = Object.keys(importances);
-    const values = Object.values(importances);
+    if (!importances) return;
 
-    const trace = {
-        x: values,
-        y: features,
-        type: 'bar',
-        orientation: 'h',
-        marker: {
-            color: values,
-            colorscale: [[0, '#00f0ff'], [0.5, '#ffb347'], [1, '#ff6847']],
-            line: { color: 'rgba(255, 120, 60, 0.4)', width: 1 }
-        },
-        text: values.map(v => `${(v * 100).toFixed(1)}%`),
-        textposition: 'outside',
-        textfont: { color: '#ffffff', size: 11, family: 'JetBrains Mono' }
+    const nameMap = {
+        'Bz': 'IMF Bz',
+        'Kp': 'Kp Index',
+        'Proton_Density': 'Proton Density',
+        'Solar_Wind_Speed': 'Wind Speed',
+        'Scalar_B': 'Scalar B',
+        'Plasma_Beta': 'Plasma Beta'
     };
 
+    const items = Object.entries(importances).map(([k, v]) => ({
+        name: nameMap[k] || k.replace(/_/g, ' '),
+        val: parseFloat(v) || 0
+    })).sort((a, b) => a.val - b.val);
+
+    const yCategories = items.map(d => d.name);
+    const xValues = items.map(d => d.val);
+    const textLabels = items.map(d => `${(d.val * 100).toFixed(1)}%`);
+
+    const barColors = [
+        '#00d4ff',
+        '#00f0ff',
+        '#ffb347',
+        '#ff9547',
+        '#ff6847',
+        '#ff3b5c'
+    ];
+
+    const trace = {
+        type: 'bar',
+        orientation: 'h',
+        x: xValues,
+        y: yCategories,
+        text: textLabels,
+        textposition: 'outside',
+        cliponaxis: false,
+        textfont: {
+            color: '#ffffff',
+            size: 11,
+            family: 'JetBrains Mono, monospace'
+        },
+        marker: {
+            color: barColors,
+            line: {
+                color: 'rgba(0, 240, 255, 0.4)',
+                width: 1
+            }
+        },
+        hoverinfo: 'text+y',
+        hovertext: items.map(d => `${d.name}: ${(d.val * 100).toFixed(1)}% importance`)
+    };
+
+    const maxVal = Math.max(...xValues, 0.1);
+
     const layout = {
-        ...chartLayoutDefaults,
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { family: 'Inter, sans-serif', color: '#8e9cc8' },
         height: 320,
-        margin: { l: 110, r: 40, t: 20, b: 30 }
+        margin: { l: 110, r: 50, t: 15, b: 35 },
+        xaxis: {
+            type: 'linear',
+            range: [0, maxVal * 1.3],
+            tickformat: '.0%',
+            gridcolor: 'rgba(0, 240, 255, 0.08)',
+            linecolor: 'rgba(0, 240, 255, 0.25)',
+            tickfont: { size: 10, color: '#6f7ba5' },
+            zeroline: false
+        },
+        yaxis: {
+            type: 'category',
+            autorange: true,
+            gridcolor: 'rgba(0,0,0,0)',
+            linecolor: 'rgba(0, 240, 255, 0.25)',
+            tickfont: { size: 11, color: '#e2e8ff', family: 'Space Grotesk, sans-serif' }
+        }
     };
 
     Plotly.newPlot('chart-importance', [trace], layout, { responsive: true, displayModeBar: false });
