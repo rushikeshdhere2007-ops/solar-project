@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar Storm AI — 3D Cybernetic Space Weather Command Center</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome, Plotly & Three.js CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- 3D WebGL Globe & Particle Canvas -->
+    <canvas id="bg-canvas-3d"></canvas>
+
+    <!-- Digital HUD CRT Scanlines & Grid Overlay -->
+    <div class="hud-scanlines"></div>
+
+    <!-- Header Navigation HUD -->
+    <header class="hud-header">
+        <div class="hud-container">
+            <div class="brand">
+                <div class="brand-icon">☀️</div>
+                <div>
+                    <div class="brand-title">SOLAR STORM <span>AI 3D</span></div>
+                    <div class="brand-subtitle">CYBERNETIC SPACE WEATHER COMMAND CENTER</div>
+                </div>
+            </div>
+
+            <div class="hud-status">
+                <!-- User Clearance Badge -->
+                <div class="user-badge" id="user-badge">
+                    <i class="fa-solid fa-user-shield text-cyan"></i>
+                    <div class="user-info">
+                        <span class="user-name" id="user-name">OPERATOR: GUEST</span>
+                        <span class="user-level" id="user-level">LEVEL 1 ACCESS</span>
+                    </div>
+                    <button class="btn-auth-trigger" id="btn-auth-trigger" title="Authentication Center">
+                        <i class="fa-solid fa-lock" id="auth-lock-icon"></i> <span id="auth-btn-label">LOGIN</span>
+                    </button>
+                </div>
+
+                <div class="status-pill" id="backend-status">
+                    <span class="status-dot green"></span>
+                    <span id="backend-text">CONNECTING REST API...</span>
+                </div>
+                <div class="mission-clock">
+                    <i class="fa-regular fa-clock"></i>
+                    <span id="mission-clock-text">MISSION TIME • SYNCING...</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-layout">
+
+        <!-- Top Telemetry Banner -->
+        <section class="banner-section">
+            <div class="hero-banner tilt-card">
+                <div class="hero-badge">3D DIGITAL MAGNETOSPHERE FORECAST MATRIX</div>
+                <h1 class="hero-heading">NEXT-GENERATION SPACE WEATHER INTELLIGENCE</h1>
+                <p class="hero-subtext">
+                    Artificial Intelligence system for 24-hour geomagnetic storm prediction using Random Forest Machine Learning trained on NASA OMNI solar-wind telemetry.
+                </p>
+                <div class="quick-stats-bar">
+                    <div class="stat-badge"><i class="fa-solid fa-microchip"></i> RANDOM FOREST CLASSIFIER</div>
+                    <div class="stat-badge"><i class="fa-solid fa-satellite"></i> OMNI-2 DATASET</div>
+                    <div class="stat-badge"><i class="fa-solid fa-bolt"></i> THRESHOLD: Kp ≥ 5.0</div>
+                    <div class="stat-badge live-pulse"><span class="pulse-dot"></span> 3D REALTIME ENGINE ONLINE</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Metrics Grid -->
+        <section class="metrics-grid">
+            <div class="metric-card tilt-card">
+                <div class="metric-label">CURRENT KP INDEX</div>
+                <div class="metric-value" id="val-kp">--</div>
+                <div class="metric-sub" id="badge-kp"><span class="badge quiet">CALCULATING</span></div>
+            </div>
+
+            <div class="metric-card tilt-card">
+                <div class="metric-label">SOLAR WIND SPEED</div>
+                <div class="metric-value" id="val-speed">-- <span class="unit">km/s</span></div>
+                <div class="metric-sub text-cyan">OMNI PLASMA SENSOR</div>
+            </div>
+
+            <div class="metric-card tilt-card">
+                <div class="metric-label">MAGNETIC FIELD Bz</div>
+                <div class="metric-value" id="val-bz">-- <span class="unit">nT</span></div>
+                <div class="metric-sub text-amber">INTERPLANETARY IMF</div>
+            </div>
+
+            <div class="metric-card tilt-card">
+                <div class="metric-label">GEOMAGNETIC RISK</div>
+                <div class="metric-value" id="val-risk">--<span class="unit">%</span></div>
+                <div class="metric-sub text-orange" id="val-risk-label">RISK INDEX</div>
+            </div>
+
+            <div class="metric-card tilt-card">
+                <div class="metric-label">AI MODEL ACCURACY</div>
+                <div class="metric-value" id="val-accuracy">--<span class="unit">%</span></div>
+                <div class="metric-sub text-green">RANDOM FOREST EVALUATION</div>
+            </div>
+        </section>
+
+        <!-- Analytics Charts Grid -->
+        <section class="grid-2col">
+            <!-- Kp Activity & Forecast Chart -->
+            <div class="glass-card tilt-card">
+                <div class="card-header">
+                    <h3><i class="fa-solid fa-chart-line text-orange"></i> 24-HOUR KP GEOMAGNETIC ACTIVITY TELEMETRY</h3>
+                    <span class="card-badge">REALTIME STREAM</span>
+                </div>
+                <div id="chart-kp" class="plotly-container"></div>
+            </div>
+
+            <!-- Risk Index Gauge -->
+            <div class="glass-card tilt-card">
+                <div class="card-header">
+                    <h3><i class="fa-solid fa-gauge-high text-cyan"></i> GEOMAGNETIC STORM RISK INDEX</h3>
+                    <span class="card-badge">REAL-TIME RISK</span>
+                </div>
+                <div id="chart-gauge" class="plotly-container"></div>
+            </div>
+        </section>
+
+        <!-- Secondary Charts Grid -->
+        <section class="grid-2col">
+            <!-- Solar Wind Speed & Bz Dual Chart -->
+            <div class="glass-card tilt-card">
+                <div class="card-header">
+                    <h3><i class="fa-solid fa-wind text-cyan"></i> SOLAR WIND SPEED &amp; IMF Bz TELEMETRY</h3>
+                    <span class="card-badge">OMNI SENSORS</span>
+                </div>
+                <div id="chart-solarwind" class="plotly-container"></div>
+            </div>
+
+            <!-- AI Feature Importance -->
+            <div class="glass-card tilt-card">
+                <div class="card-header">
+                    <h3><i class="fa-solid fa-brain text-amber"></i> AI FEATURE IMPORTANCE WEIGHTS</h3>
+                    <span class="card-badge">RANDOM FOREST</span>
+                </div>
+                <div id="chart-importance" class="plotly-container"></div>
+            </div>
+        </section>
+
+        <!-- AI Storm Forecast Predictor Form & Results -->
+        <section class="predictor-section">
+            <div class="glass-card highlight-card tilt-card">
+                <div class="card-header">
+                    <h3><i class="fa-solid fa-wand-magic-sparkles text-orange"></i> INTERACTIVE 24-HOUR GEOMAGNETIC STORM PREDICTOR</h3>
+                    <span class="card-badge pulse">AI SIMULATOR</span>
+                </div>
+                <p class="section-desc">
+                    Adjust real-time solar wind plasma and interplanetary magnetic field parameters below. Click <strong>RUN 24-HOUR FORECAST</strong> to query the Random Forest REST API backend.
+                </p>
+
+                <form id="predict-form" class="predictor-grid">
+                    <div class="input-group">
+                        <label for="input-bz">IMF Bz Magnetic Field (nT)</label>
+                        <input type="number" id="input-bz" step="0.1" value="-10.5">
+                        <span class="input-hint">Southward (Negative) increases storm risk</span>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="input-speed">Solar Wind Speed (km/s)</label>
+                        <input type="number" id="input-speed" step="1" value="620">
+                        <span class="input-hint">Nominal: 350-450 km/s | High: &gt;600 km/s</span>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="input-density">Proton Density (n/cm³)</label>
+                        <input type="number" id="input-density" step="0.1" value="16.4">
+                        <span class="input-hint">Nominal: 3-8 n/cm³</span>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="input-scalar-b">Scalar Magnetic Field B (nT)</label>
+                        <input type="number" id="input-scalar-b" step="0.1" value="14.8">
+                        <span class="input-hint">Total IMF Field Strength</span>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="input-beta">Plasma Beta</label>
+                        <input type="number" id="input-beta" step="0.1" value="1.9">
+                        <span class="input-hint">Plasma to Magnetic Pressure Ratio</span>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="input-kp">Current Kp Index</label>
+                        <input type="number" id="input-kp" step="0.1" max="9.0" min="0" value="4.3">
+                        <span class="input-hint">Latest 3-hour Kp observation</span>
+                    </div>
+
+                    <div class="form-submit-col">
+                        <button type="submit" class="btn-predict" id="btn-predict">
+                            <i class="fa-solid fa-bolt"></i> RUN 24-HOUR FORECAST MODEL
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Prediction Result Box -->
+                <div id="prediction-output" class="prediction-result-box hidden">
+                    <div class="result-header">
+                        <div class="result-title"><i class="fa-solid fa-shield-halved"></i> 24-HOUR FORECAST PREDICTION RESULTS</div>
+                        <div class="result-badge" id="res-risk-level">G2 MODERATE STORM</div>
+                    </div>
+                    <div class="result-grid">
+                        <div class="result-stat">
+                            <span class="stat-label">STORM PROBABILITY</span>
+                            <span class="stat-val" id="res-prob">0%</span>
+                        </div>
+                        <div class="result-stat">
+                            <span class="stat-label">ESTIMATED 24H KP</span>
+                            <span class="stat-val" id="res-kp">Kp 0.0</span>
+                        </div>
+                    </div>
+                    <div class="advisory-box">
+                        <i class="fa-solid fa-triangle-exclamation advisory-icon"></i>
+                        <div>
+                            <strong>MISSION ADVISORY:</strong>
+                            <p id="res-advisory">System nominal.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Data Ingestion HUD & Upload Section -->
+        <section class="ingestion-section">
+            <div class="glass-card tilt-card">
+                <div class="card-header">
+                    <h3><i class="fa-solid fa-satellite-dish text-cyan"></i> DATASET INGESTION &amp; REST API CONTROL</h3>
+                    <div class="ingestion-actions">
+                        <button class="btn-secondary" id="btn-reset-demo">
+                            <i class="fa-solid fa-rotate-left"></i> RESET DEMO TELEMETRY STREAM
+                        </button>
+                    </div>
+                </div>
+
+                <div class="upload-container">
+                    <div class="dropzone" id="dropzone">
+                        <i class="fa-solid fa-cloud-arrow-up drop-icon"></i>
+                        <h4>DRAG &amp; DROP CUSTOM OMNI DATASET (.lst, .txt, .csv)</h4>
+                        <p>Or click to browse and upload your space weather observation file to retrain the ML backend REST API</p>
+                        <input type="file" id="file-input" accept=".lst,.txt,.csv" hidden>
+                        <button type="button" class="btn-browse" onclick="document.getElementById('file-input').click()">
+                            BROWSE DATASET FILE
+                        </button>
+                    </div>
+                    <div id="upload-status" class="upload-status-msg hidden"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Recent Observations Table -->
+        <section class="table-section">
+            <div class="glass-card tilt-card">
+                <div class="card-header">
+                    <h3><i class="fa-solid fa-table-list text-amber"></i> RECENT SOLAR-WIND OBSERVATIONS</h3>
+                    <span class="card-badge">OMNI TELEMETRY</span>
+                </div>
+                <div class="table-wrapper">
+                    <table class="telemetry-table">
+                        <thead>
+                            <tr>
+                                <th>TIME / HOUR</th>
+                                <th>Bz (nT)</th>
+                                <th>PROTON DENSITY</th>
+                                <th>SOLAR WIND SPEED</th>
+                                <th>PLASMA BETA</th>
+                                <th>KP INDEX</th>
+                                <th>STORM STATUS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            <tr><td colspan="7" class="text-center">Loading telemetry stream from Flask API...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 3D CYBERPUNK AUTHENTICATION MODAL -->
+    <div class="auth-modal-overlay hidden" id="auth-modal">
+        <div class="auth-card">
+            <button class="auth-close-btn" id="auth-close-btn">&times;</button>
+            <div class="auth-header">
+                <div class="auth-shield-icon"><i class="fa-solid fa-shield-cat"></i></div>
+                <h2>OPERATOR AUTHENTICATION</h2>
+                <p>NASA Space Weather Defense &amp; Telemetry Command Center</p>
+            </div>
+
+            <!-- Auth Tabs -->
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="tab-login-btn">OPERATOR LOGIN</button>
+                <button class="auth-tab" id="tab-register-btn">REGISTER OPERATOR</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" class="auth-form">
+                <div class="input-group">
+                    <label for="login-username"><i class="fa-solid fa-user"></i> Operator ID</label>
+                    <input type="text" id="login-username" placeholder="e.g. admin or sai" required>
+                </div>
+                <div class="input-group">
+                    <label for="login-password"><i class="fa-solid fa-key"></i> Security Passcode</label>
+                    <input type="password" id="login-password" placeholder="Passcode" required>
+                </div>
+                <div class="credentials-hint">
+                    💡 <strong>Default Demo Credentials:</strong><br>
+                    ID: <code>admin</code> | Passcode: <code>solar123</code> (Commander Level 5)<br>
+                    ID: <code>sai</code> | Passcode: <code>solar123</code> (Analyst Level 4)
+                </div>
+                <button type="submit" class="btn-auth-submit" id="btn-login-submit">
+                    <i class="fa-solid fa-right-to-bracket"></i> AUTHENTICATE COMMANDER
+                </button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="register-form" class="auth-form hidden">
+                <div class="input-group">
+                    <label for="reg-name"><i class="fa-solid fa-id-card"></i> Full Operator Name</label>
+                    <input type="text" id="reg-name" placeholder="e.g. Rushi Dhere" required>
+                </div>
+                <div class="input-group">
+                    <label for="reg-username"><i class="fa-solid fa-user"></i> Desired Operator ID</label>
+                    <input type="text" id="reg-username" placeholder="e.g. rushi2026" required>
+                </div>
+                <div class="input-group">
+                    <label for="reg-password"><i class="fa-solid fa-key"></i> Security Passcode</label>
+                    <input type="password" id="reg-password" placeholder="Passcode" required>
+                </div>
+                <button type="submit" class="btn-auth-submit" id="btn-reg-submit">
+                    <i class="fa-solid fa-user-plus"></i> REGISTER &amp; ACCESS SYSTEM
+                </button>
+            </form>
+
+            <div class="auth-msg hidden" id="auth-msg"></div>
+
+            <div class="auth-footer-actions">
+                <button class="btn-guest-access" id="btn-guest-access">
+                    <i class="fa-solid fa-eye"></i> CONTINUE IN PUBLIC GUEST OBSERVER MODE
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="hud-footer">
+        <div class="footer-content">
+            <div>☀️ SOLAR STORM AI 3D • CYBERNETIC REST API SYSTEM</div>
+            <div class="footer-sub">3D Magnetosphere Engine • Random Forest Classifier • OMNI Space Weather Telemetry</div>
+            <div class="footer-credit">DEVELOPED BY RUSHI DHERE</div>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
