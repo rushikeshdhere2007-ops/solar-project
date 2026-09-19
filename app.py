@@ -130,18 +130,71 @@ def init_app():
 init_app()
 
 # ============================================================
-# AUTHENTICATION DATABASE & SESSION STORE
+# SQLITE PERSISTENT DATABASE & AUTHENTICATION STORE
 # ============================================================
 
 import secrets
+import sqlite3
 
-USERS = {
-    "admin": {"password": "solar123", "name": "Rushi Dhere", "role": "Flight Commander", "level": "Level 5 Clearance"},
-    "sai": {"password": "solar123", "name": "Sai Operator", "role": "Space Weather Analyst", "level": "Level 4 Clearance"},
-    "guest": {"password": "guest", "name": "Guest Explorer", "role": "Observer", "level": "Level 1 Access"}
-}
+DB_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "solar_storm.db")
 
-SESSIONS = {}
+def get_db():
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    """Initializes SQLite database schema and seeds default operators."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                name TEXT NOT NULL,
+                role TEXT NOT NULL,
+                level TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS sessions (
+                token TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS predictions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                scalar_b REAL,
+                bz REAL,
+                proton_density REAL,
+                solar_wind_speed REAL,
+                plasma_beta REAL,
+                kp_current REAL,
+                predicted_kp_24h REAL,
+                storm_prob REAL,
+                risk_level TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        # Seed default operators if not present
+        default_users = [
+            ("admin", "solar123", "Rushi Dhere", "Flight Commander", "Level 5 Clearance"),
+            ("sai", "solar123", "Sai Operator", "Space Weather Analyst", "Level 4 Clearance"),
+            ("guest", "guest", "Guest Explorer", "Observer", "Level 1 Access")
+        ]
+        for u, p, n, r, l in default_users:
+            cursor.execute("""
+                INSERT OR IGNORE INTO users (username, password, name, role, level)
+                VALUES (?, ?, ?, ?, ?)
+            """, (u, p, n, r, l))
+        conn.commit()
+
+init_db()
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():
@@ -149,20 +202,29 @@ def login():
     username = str(data.get("username", "")).strip().lower()
     password = str(data.get("password", "")).strip()
 
-    if username in USERS and USERS[username]["password"] == password:
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password))
+    user = cursor.fetchone()
+
+    if user:
         token = secrets.token_hex(16)
-        user_info = USERS[username]
-        SESSIONS[token] = {
-            "username": username,
-            "name": user_info["name"],
-            "role": user_info["role"],
-            "level": user_info["level"]
+        cursor.execute("INSERT INTO sessions (token, user_id) VALUES (?, ?)", (token, user["id"]))
+        conn.commit()
+        user_data = {
+            "id": user["id"],
+            "username": user["username"],
+            "name": user["name"],
+            "role": user["role"],
+            "level": user["level"]
         }
+        conn.close()
         return jsonify({
             "success": True,
             "token": token,
-            "user": SESSIONS[token]
+            "user": user_data
         })
+    conn.close()
     return jsonify({"success": False, "error": "Invalid username or security credentials"}), 401
 
 @app.route('/api/auth/register', methods=['POST'])
@@ -175,36 +237,63 @@ def register():
     if not username or not password:
         return jsonify({"success": False, "error": "Username and password required"}), 400
 
-    if username in USERS:
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+    if cursor.fetchone():
+        conn.close()
         return jsonify({"success": False, "error": "Operator ID already exists"}), 400
 
-    USERS[username] = {
-        "password": password,
-        "name": name,
-        "role": "Mission Specialist",
-        "level": "Level 3 Clearance"
-    }
+    cursor.execute("""
+        INSERT INTO users (username, password, name, role, level)
+        VALUES (?, ?, ?, 'Mission Specialist', 'Level 3 Clearance')
+    """, (username, password, name))
+    user_id = cursor.lastrowid
 
     token = secrets.token_hex(16)
-    SESSIONS[token] = {
+    cursor.execute("INSERT INTO sessions (token, user_id) VALUES (?, ?)", (token, user_id))
+    conn.commit()
+
+    user_data = {
+        "id": user_id,
         "username": username,
         "name": name,
         "role": "Mission Specialist",
         "level": "Level 3 Clearance"
     }
-
+    conn.close()
     return jsonify({
         "success": True,
         "token": token,
-        "user": SESSIONS[token]
+        "user": user_data
     })
 
 @app.route('/api/auth/me', methods=['GET'])
 def get_current_user():
     auth_header = request.headers.get("Authorization", "")
     token = auth_header.replace("Bearer ", "").strip()
-    if token in SESSIONS:
-        return jsonify({"success": True, "user": SESSIONS[token]})
+    if token:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT u.id, u.username, u.name, u.role, u.level
+            FROM sessions s
+            JOIN users u ON s.user_id = u.id
+            WHERE s.token = ?
+        """, (token,))
+        user = cursor.fetchone()
+        conn.close()
+        if user:
+            return jsonify({
+                "success": True,
+                "user": {
+                    "id": user["id"],
+                    "username": user["username"],
+                    "name": user["name"],
+                    "role": user["role"],
+                    "level": user["level"]
+                }
+            })
     return jsonify({"success": False, "error": "Unauthenticated"}), 401
 
 # ============================================================
@@ -221,14 +310,43 @@ def dashboard():
 
 @app.route('/api/status', methods=['GET'])
 def get_status():
+    user_count = 0
+    pred_count = 0
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM users")
+        user_count = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM predictions")
+        pred_count = cursor.fetchone()[0]
+        conn.close()
+    except Exception:
+        pass
+
     return jsonify({
         "status": "ONLINE",
         "system": "Solar Storm AI Backend",
+        "database": "SQLite (Connected - solar_storm.db)",
+        "database_connected": True,
+        "database_users": user_count,
+        "database_predictions": pred_count,
         "model": "Random Forest Classifier (150 trees)",
         "dataset_records": len(DATASET) if DATASET is not None else 0,
         "features": FEATURES,
         "metrics": MODEL_METRICS
     })
+
+@app.route('/api/predictions/history', methods=['GET'])
+def get_prediction_history():
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM predictions ORDER BY id DESC LIMIT 20")
+        rows = [dict(r) for r in cursor.fetchall()]
+        conn.close()
+        return jsonify({"success": True, "history": rows})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/telemetry', methods=['GET'])
 def get_telemetry():
@@ -342,6 +460,19 @@ def predict_storm():
             risk_level = "QUIET / NORMAL SPACE WEATHER"
             risk_color = "#33ff88"
             advisory = "NOMINAL: Space environment stable. All satellite and ground systems operating normally."
+
+        # Persist prediction in SQLite database
+        try:
+            conn = get_db()
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO predictions (scalar_b, bz, proton_density, solar_wind_speed, plasma_beta, kp_current, predicted_kp_24h, storm_prob, risk_level)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (scalar_b, bz, proton_density, solar_wind_speed, plasma_beta, kp_current, est_kp, prob_percent, risk_level))
+            conn.commit()
+            conn.close()
+        except Exception as db_err:
+            print("DB prediction logging error:", db_err)
 
         return jsonify({
             "storm_probability_percent": prob_percent,
