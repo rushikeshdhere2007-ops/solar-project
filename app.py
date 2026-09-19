@@ -184,6 +184,7 @@ def init_db():
         # Seed default operators if not present
         default_users = [
             ("admin", "solar123", "Rushi Dhere", "Flight Commander", "Level 5 Clearance"),
+            ("rushi021", "solar123", "Rushi Dhere", "Flight Commander", "Level 5 Clearance"),
             ("sai", "solar123", "Sai Operator", "Space Weather Analyst", "Level 4 Clearance"),
             ("guest", "guest", "Guest Explorer", "Observer", "Level 1 Access")
         ]
