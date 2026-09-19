@@ -232,7 +232,7 @@ function setupAuthModal() {
             showAuthMsg('Authentication API network error.', 'error');
         } finally {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> AUTHENTICATE COMMANDER';
+            btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> LOG IN';
         }
     });
 

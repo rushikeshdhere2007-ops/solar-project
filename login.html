@@ -576,7 +576,7 @@
                     <input type="password" id="l-pass" placeholder="Enter passcode" autocomplete="current-password" required>
                 </div>
                 <button type="submit" class="btn-submit" id="btn-login">
-                    <i class="fa-solid fa-bolt"></i> AUTHENTICATE &amp; ACCESS COMMAND CENTER
+                    <i class="fa-solid fa-right-to-bracket"></i> LOG IN
                 </button>
             </form>
 
@@ -821,12 +821,12 @@
             } else {
                 showMsg('ACCESS DENIED — ' + (data.error || 'Invalid credentials'), 'error');
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-bolt"></i> AUTHENTICATE & ACCESS COMMAND CENTER';
+                btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> LOG IN';
             }
         } catch (err) {
             showMsg('NETWORK ERROR — Cannot reach authentication server', 'error');
             btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-bolt"></i> AUTHENTICATE & ACCESS COMMAND CENTER';
+            btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> LOG IN';
         }
     });
 
