@@ -535,6 +535,129 @@ def reset_demo():
         "metrics": MODEL_METRICS
     })
 
+# ============================================================
+# SIGN-IN LOG ENDPOINTS
+# ============================================================
+
+@app.route('/api/signin-log', methods=['GET'])
+def get_signin_log():
+    """Return all sign-in records as JSON."""
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT u.name, u.username, u.role, u.level, s.created_at
+            FROM sessions s
+            JOIN users u ON s.user_id = u.id
+            ORDER BY s.created_at DESC
+        """)
+        rows = []
+        for r in cursor.fetchall():
+            rows.append({
+                "name": r["name"],
+                "username": r["username"],
+                "role": r["role"],
+                "clearance_level": r["level"],
+                "signin_datetime": r["created_at"]
+            })
+        conn.close()
+        return jsonify({"success": True, "total": len(rows), "log": rows})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/signin-log/download', methods=['GET'])
+def download_signin_log():
+    """Generate and download the sign-in log as an Excel file."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.utils import get_column_letter
+    from datetime import datetime
+    from flask import send_file
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT u.name, u.username, u.role, u.level, s.created_at
+        FROM sessions s
+        JOIN users u ON s.user_id = u.id
+        ORDER BY s.created_at ASC
+    """)
+    records = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sign-In Log"
+
+    title_font = Font(name="Calibri", size=16, bold=True, color="FFFFFF")
+    title_fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
+    header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="2E75B6", end_color="2E75B6", fill_type="solid")
+    data_font = Font(name="Calibri", size=11)
+    alt_fill = PatternFill(start_color="D6E4F0", end_color="D6E4F0", fill_type="solid")
+    thin_border = Border(left=Side(style="thin"), right=Side(style="thin"),
+                         top=Side(style="thin"), bottom=Side(style="thin"))
+    center = Alignment(horizontal="center", vertical="center")
+    left_align = Alignment(horizontal="left", vertical="center")
+
+    ws.merge_cells("A1:H1")
+    ws["A1"].value = "Solar Storm Mission Control - Sign-In Log"
+    ws["A1"].font = title_font
+    ws["A1"].fill = title_fill
+    ws["A1"].alignment = center
+    ws.row_dimensions[1].height = 38
+
+    ws.merge_cells("A2:H2")
+    ws["A2"].value = f"Generated on: {datetime.now().strftime('%d %B %Y, %I:%M %p')}"
+    ws["A2"].font = Font(name="Calibri", size=10, italic=True, color="555555")
+    ws["A2"].alignment = center
+
+    headers = ["Sr. No.", "Full Name", "Username", "Role", "Clearance Level",
+               "Sign-In Date", "Sign-In Time", "Day"]
+    for col_idx, h in enumerate(headers, 1):
+        cell = ws.cell(row=4, column=col_idx, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center
+        cell.border = thin_border
+
+    for row_idx, rec in enumerate(records, 1):
+        try:
+            dt = datetime.strptime(rec["created_at"], "%Y-%m-%d %H:%M:%S")
+        except Exception:
+            dt = None
+        vals = [
+            row_idx, rec["name"], rec["username"], rec["role"], rec["level"],
+            dt.strftime("%d-%b-%Y") if dt else "N/A",
+            dt.strftime("%I:%M:%S %p") if dt else "N/A",
+            dt.strftime("%A") if dt else "N/A",
+        ]
+        for col_idx, v in enumerate(vals, 1):
+            cell = ws.cell(row=4 + row_idx, column=col_idx, value=v)
+            cell.font = data_font
+            cell.alignment = center if col_idx in (1, 6, 7, 8) else left_align
+            cell.border = thin_border
+            if row_idx % 2 == 0:
+                cell.fill = alt_fill
+
+    for i, w in enumerate([9, 22, 16, 26, 22, 16, 16, 14], 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+    footer_row = 4 + len(records) + 2
+    ws.merge_cells(f"A{footer_row}:H{footer_row}")
+    ws.cell(row=footer_row, column=1).value = f"Total Sign-Ins: {len(records)}"
+    ws.cell(row=footer_row, column=1).font = Font(name="Calibri", size=11, bold=True, color="1F4E79")
+    ws.cell(row=footer_row, column=1).alignment = Alignment(horizontal="right", vertical="center")
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return send_file(output, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                     as_attachment=True, download_name="Sign_In_Log.xlsx")
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"Starting Solar Storm AI Flask Backend on http://localhost:{port} ...")
