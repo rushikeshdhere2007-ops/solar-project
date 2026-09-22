@@ -572,8 +572,10 @@ def download_signin_log():
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
     from openpyxl.utils import get_column_letter
-    from datetime import datetime
+    from datetime import datetime, timezone, timedelta
     from flask import send_file
+
+    IST = timezone(timedelta(hours=5, minutes=30))
 
     conn = get_db()
     cursor = conn.cursor()
@@ -624,7 +626,8 @@ def download_signin_log():
 
     for row_idx, rec in enumerate(records, 1):
         try:
-            dt = datetime.strptime(rec["created_at"], "%Y-%m-%d %H:%M:%S")
+            dt_utc = datetime.strptime(rec["created_at"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            dt = dt_utc.astimezone(IST)
         except Exception:
             dt = None
         vals = [

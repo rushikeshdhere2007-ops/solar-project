@@ -5,7 +5,9 @@ Reads session/login data from solar_storm.db and exports a formatted Excel file.
 
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+IST = timezone(timedelta(hours=5, minutes=30))
 
 import openpyxl
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
@@ -103,9 +105,10 @@ def create_excel(records):
     for row_idx, record in enumerate(records, start=1):
         excel_row = header_row + row_idx
 
-        # Parse datetime
+        # Parse datetime (stored as UTC) and convert to IST
         try:
-            dt = datetime.strptime(record["signin_datetime"], "%Y-%m-%d %H:%M:%S")
+            dt_utc = datetime.strptime(record["signin_datetime"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            dt = dt_utc.astimezone(IST)
         except (ValueError, TypeError):
             dt = None
 
